@@ -15,36 +15,46 @@ export const parseExcelFile = (file: File): Promise<SheetData> => {
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        const workbook = XLSX.read(data, { type: 'array' });
         const sheetData: SheetData = {};
+
+        console.log('Abas encontradas:', workbook.SheetNames);
 
         workbook.SheetNames.forEach((sheetName) => {
           const worksheet = workbook.Sheets[sheetName];
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          console.log(`Processando aba "${sheetName}":`, jsonData.length, 'linhas');
           
           // Convert array of arrays to array of objects using first row as headers
           if (jsonData.length > 0) {
             const headers = jsonData[0] as string[];
             const rows = jsonData.slice(1) as any[][];
             
+            console.log(`Colunas encontradas na aba "${sheetName}":`, headers);
+            
             sheetData[sheetName] = rows.map((row) => {
               const obj: ExcelData = {};
               headers.forEach((header, index) => {
-                obj[header] = row[index] || '';
+                // Normalize header names for easier access
+                const normalizedHeader = header?.toString().trim();
+                obj[normalizedHeader] = row[index] !== undefined ? row[index] : '';
               });
               return obj;
-            }).filter(row => Object.values(row).some(val => val !== ''));
+            }).filter(row => Object.values(row).some(val => val !== '' && val !== null && val !== undefined));
           }
         });
 
+        console.log('Dados processados:', sheetData);
         resolve(sheetData);
       } catch (error) {
+        console.error('Erro ao processar arquivo:', error);
         reject(new Error('Erro ao processar arquivo Excel: ' + (error as Error).message));
       }
     };
 
     reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   });
 };
 
@@ -97,7 +107,6 @@ export const exportToCSV = (data: ExcelData[], filename: string): void => {
 
 export const validateNomenclatureStructure = (data: ExcelData[]): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];
-  const requiredFields = ['campanha', 'conjunto', 'publico', 'anuncio', 'criativo', 'formato'];
   
   if (data.length === 0) {
     errors.push('Nenhum dado encontrado no arquivo');
@@ -105,20 +114,33 @@ export const validateNomenclatureStructure = (data: ExcelData[]): { isValid: boo
   }
 
   const headers = Object.keys(data[0]);
-  const missingFields = requiredFields.filter(field => !headers.includes(field));
+  console.log('Headers encontrados para validação:', headers);
   
-  if (missingFields.length > 0) {
-    errors.push(`Campos obrigatórios faltando: ${missingFields.join(', ')}`);
+  // Check for the expected columns based on the actual Excel structure
+  const expectedFields = [
+    'Campanha', 'Conjunto', 'Público', 'Anúncio (nome)', 'Criativo (código)', 'Formato'
+  ];
+  
+  // More flexible validation - check if we have the main fields
+  const hasMainFields = headers.some(h => h.includes('Campanha')) &&
+                        headers.some(h => h.includes('Conjunto')) &&
+                        headers.some(h => h.includes('Público')) &&
+                        headers.some(h => h.includes('Anúncio')) &&
+                        headers.some(h => h.includes('Criativo')) &&
+                        headers.some(h => h.includes('Formato'));
+  
+  if (!hasMainFields) {
+    errors.push('Estrutura da planilha não reconhecida. Certifique-se de que contém as colunas: Campanha, Conjunto, Público, Anúncio, Criativo, Formato');
   }
 
-  // Validate data consistency
-  data.forEach((row, index) => {
-    requiredFields.forEach(field => {
-      if (!row[field] || row[field].toString().trim() === '') {
-        errors.push(`Linha ${index + 2}: Campo "${field}" está vazio`);
-      }
-    });
-  });
+  // Basic data validation - check if rows have data
+  const emptyRows = data.filter(row => 
+    Object.values(row).every(val => !val || val.toString().trim() === '')
+  ).length;
+  
+  if (emptyRows === data.length) {
+    errors.push('Todas as linhas estão vazias');
+  }
 
   return { isValid: errors.length === 0, errors };
 };

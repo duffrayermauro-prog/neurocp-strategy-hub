@@ -153,66 +153,85 @@ export const NomenclatureSection = () => {
     if (!file) return;
 
     setIsLoading(true);
-
     try {
+      console.log('Iniciando upload do arquivo:', file.name);
       const sheetData = await parseExcelFile(file);
       
-      // Look for nomenclature data in expected sheets
-      let nomenclatureData: any[] = [];
+      console.log('Sheets disponíveis:', Object.keys(sheetData));
       
-      const possibleSheets = ['Matriz_Anuncios', 'Anuncios', 'Nomenclatura', 'Sheet1'];
+      // Try to find the sheet with the most complete ad data
+      // Look for sheets that have 'Campanha' column
+      let targetSheet = null;
+      let targetSheetName = '';
       
-      for (const sheetName of possibleSheets) {
-        if (sheetData[sheetName]) {
-          nomenclatureData = sheetData[sheetName];
-          break;
+      for (const [sheetName, data] of Object.entries(sheetData)) {
+        if (data && data.length > 0) {
+          const headers = Object.keys(data[0]);
+          console.log(`Sheet "${sheetName}" headers:`, headers);
+          
+          // Look for the sheet with campaign/ad data structure
+          if (headers.some(h => h.includes('Campanha')) && 
+              headers.some(h => h.includes('Anúncio'))) {
+            targetSheet = data;
+            targetSheetName = sheetName;
+            console.log(`Encontrada sheet com dados de anúncios: "${sheetName}"`);
+            break;
+          }
         }
       }
       
-      if (nomenclatureData.length === 0) {
-        // If no specific sheet found, use the first sheet
-        const firstSheetName = Object.keys(sheetData)[0];
-        if (firstSheetName) {
-          nomenclatureData = sheetData[firstSheetName];
+      // If no specific sheet found, use the first non-empty one
+      if (!targetSheet) {
+        const firstSheet = Object.entries(sheetData).find(([_, data]) => data && data.length > 0);
+        if (firstSheet) {
+          targetSheet = firstSheet[1];
+          targetSheetName = firstSheet[0];
+          console.log(`Usando primeira sheet disponível: "${targetSheetName}"`);
         }
       }
-
-      if (nomenclatureData.length === 0) {
-        throw new Error('Nenhum dado encontrado no arquivo');
-      }
-
-      // Validate structure
-      const validation = validateNomenclatureStructure(nomenclatureData);
       
-      if (!validation.isValid) {
+      if (!targetSheet || targetSheet.length === 0) {
         toast({
-          title: "Erro na estrutura do arquivo",
-          description: validation.errors.join('. '),
+          title: "Erro",
+          description: "Nenhum dado encontrado na planilha. Verifique se há dados nas abas.",
           variant: "destructive",
         });
-        setIsLoading(false);
         return;
       }
 
-      // Save data
-      setImportedData(nomenclatureData);
+      console.log(`Validando dados da sheet "${targetSheetName}" com ${targetSheet.length} linhas`);
+      const validation = validateNomenclatureStructure(targetSheet);
+      
+      if (!validation.isValid) {
+        console.error('Erros de validação:', validation.errors);
+        toast({
+          title: "Erro de Validação",
+          description: validation.errors.join('\n'),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Dados validados com sucesso, importando...');
+      setImportedData(targetSheet);
       setIsImported(true);
       
-      // Persist to localStorage
-      saveProjectData({ 
-        importedNomenclature: nomenclatureData,
+      // Save to localStorage
+      saveProjectData({
+        importedNomenclature: targetSheet,
         hasImportedData: true
       });
 
       toast({
-        title: "Arquivo importado com sucesso!",
-        description: `${nomenclatureData.length} anúncios processados de ${file.name}`,
+        title: "Sucesso!",
+        description: `${targetSheet.length} linhas importadas da aba "${targetSheetName}".`,
       });
-
+      
     } catch (error) {
+      console.error('Erro no upload:', error);
       toast({
-        title: "Erro na importação",
-        description: (error as Error).message,
+        title: "Erro",
+        description: `Erro ao processar arquivo: ${(error as Error).message}`,
         variant: "destructive",
       });
     } finally {
@@ -220,21 +239,58 @@ export const NomenclatureSection = () => {
     }
   };
 
-  const columns = [
-    { key: 'campanha', label: 'Campanha', width: 'w-1/6' },
-    { key: 'conjunto', label: 'Conjunto', width: 'w-1/8' },
-    { key: 'publico', label: 'Público', width: 'w-1/12' },
-    { key: 'anuncio', label: 'Anúncio (nome)', width: 'w-1/5' },
-    { key: 'criativo', label: 'Criativo', width: 'w-1/12' },
-    { key: 'formato', label: 'Formato', width: 'w-1/12' },
-    { key: 'legendas', label: 'Legendas', width: 'w-1/12' },
-    { key: 'cta', label: 'CTA', width: 'w-1/12' },
-    { key: 'utm_source', label: 'UTM Source' },
-    { key: 'utm_medium', label: 'UTM Medium' },
-    { key: 'utm_campaign', label: 'UTM Campaign' },
-    { key: 'utm_content', label: 'UTM Content' },
-    { key: 'utm_term', label: 'UTM Term' }
-  ];
+  // Dynamic columns based on imported data
+  const columns = React.useMemo(() => {
+    if (isImported && importedData.length > 0) {
+      const headers = Object.keys(importedData[0]);
+      console.log('Criando colunas a partir dos headers:', headers);
+      
+      // Create columns for the main fields we want to display
+      const mainColumns: any[] = [];
+      
+      // Map the actual headers to display columns
+      const headerMapping = [
+        { key: 'Campanha', label: 'Campanha', width: 'w-1/5' },
+        { key: 'Conjunto', label: 'Conjunto', width: 'w-1/5' },
+        { key: 'Público', label: 'Público', width: 'w-1/6' },
+        { key: 'Anúncio (nome)', label: 'Anúncio', width: 'w-1/4' },
+        { key: 'Criativo (código)', label: 'Criativo', width: 'w-1/12' },
+        { key: 'Formato', label: 'Formato', width: 'w-1/12' },
+      ];
+      
+      headerMapping.forEach(mapping => {
+        const foundHeader = headers.find(h => h === mapping.key || h.includes(mapping.key.split(' ')[0]));
+        if (foundHeader) {
+          mainColumns.push({
+            key: foundHeader,
+            label: mapping.label,
+            width: mapping.width
+          });
+        }
+      });
+      
+      return mainColumns.length > 0 ? mainColumns : [
+        { key: headers[0] || 'data', label: 'Dados', width: 'w-full' }
+      ];
+    }
+    
+    // Default columns for demo data
+    return [
+      { key: 'campanha', label: 'Campanha', width: 'w-1/6' },
+      { key: 'conjunto', label: 'Conjunto', width: 'w-1/8' },
+      { key: 'publico', label: 'Público', width: 'w-1/12' },
+      { key: 'anuncio', label: 'Anúncio (nome)', width: 'w-1/5' },
+      { key: 'criativo', label: 'Criativo', width: 'w-1/12' },
+      { key: 'formato', label: 'Formato', width: 'w-1/12' },
+      { key: 'legendas', label: 'Legendas', width: 'w-1/12' },
+      { key: 'cta', label: 'CTA', width: 'w-1/12' },
+      { key: 'utm_source', label: 'UTM Source' },
+      { key: 'utm_medium', label: 'UTM Medium' },
+      { key: 'utm_campaign', label: 'UTM Campaign' },
+      { key: 'utm_content', label: 'UTM Content' },
+      { key: 'utm_term', label: 'UTM Term' }
+    ];
+  }, [isImported, importedData]);
 
   const currentData = isImported ? importedData : defaultData;
 
@@ -374,30 +430,30 @@ export const NomenclatureSection = () => {
       </Card>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-primary/5 p-4 rounded-xl text-center">
-          <div className="text-2xl font-bold text-primary">{currentData.length}</div>
-          <div className="text-sm text-muted-foreground">Total de Anúncios</div>
-        </div>
-        <div className="bg-success/5 p-4 rounded-xl text-center">
-          <div className="text-2xl font-bold text-success">
-            {new Set(currentData.map(d => d.campanha)).size}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-primary/5 p-4 rounded-xl text-center">
+            <div className="text-2xl font-bold text-primary">{currentData.length}</div>
+            <div className="text-sm text-muted-foreground">Total de Anúncios</div>
           </div>
-          <div className="text-sm text-muted-foreground">Campanhas</div>
-        </div>
-        <div className="bg-accent/5 p-4 rounded-xl text-center">
-          <div className="text-2xl font-bold text-accent">
-            {new Set(currentData.map(d => d.conjunto)).size}
+          <div className="bg-success/5 p-4 rounded-xl text-center">
+            <div className="text-2xl font-bold text-success">
+              {new Set(currentData.map(d => d.campanha || d.Campanha || '')).size}
+            </div>
+            <div className="text-sm text-muted-foreground">Campanhas</div>
           </div>
-          <div className="text-sm text-muted-foreground">Conjuntos</div>
-        </div>
-        <div className="bg-warning/5 p-4 rounded-xl text-center">
-          <div className="text-2xl font-bold text-warning">
-            {new Set(currentData.map(d => d.criativo)).size}
+          <div className="bg-accent/5 p-4 rounded-xl text-center">
+            <div className="text-2xl font-bold text-accent">
+              {new Set(currentData.map(d => d.conjunto || d.Conjunto || '')).size}
+            </div>
+            <div className="text-sm text-muted-foreground">Conjuntos</div>
           </div>
-          <div className="text-sm text-muted-foreground">Criativos</div>
+          <div className="bg-warning/5 p-4 rounded-xl text-center">
+            <div className="text-2xl font-bold text-warning">
+              {new Set(currentData.map(d => d.criativo || d['Criativo (código)'] || '')).size}
+            </div>
+            <div className="text-sm text-muted-foreground">Criativos</div>
+          </div>
         </div>
-      </div>
     </div>
   );
 };
