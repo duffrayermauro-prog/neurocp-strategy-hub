@@ -317,13 +317,25 @@ export const NomenclatureSection = () => {
               onChange={handleFileUpload}
               className="hidden"
               id="excel-upload"
+              ref={(input) => {
+                if (input) {
+                  (window as any).excelInput = input;
+                }
+              }}
             />
-            <label htmlFor="excel-upload">
-              <Button className="btn-accent cursor-pointer" disabled={isLoading}>
-                <Upload className="w-4 h-4 mr-2" />
-                {isLoading ? 'Processando...' : 'Importar Planilha Excel'}
-              </Button>
-            </label>
+            <Button 
+              className="btn-accent cursor-pointer" 
+              disabled={isLoading}
+              onClick={() => {
+                const input = document.getElementById('excel-upload') as HTMLInputElement;
+                if (input) {
+                  input.click();
+                }
+              }}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              {isLoading ? 'Processando...' : 'Importar Planilha Excel'}
+            </Button>
           </div>
           <div className="text-sm text-muted-foreground">
             <p>Formatos aceitos: .xlsx, .xls</p>
