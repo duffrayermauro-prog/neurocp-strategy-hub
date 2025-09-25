@@ -2,41 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* NeuroCP Design System - Inspired by Academia de Neuropolítica 
 All colors MUST be HSL.
 */
 
 @layer base {
   :root {
+    /* Base colors - Clean white background */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 215 25% 27%;
 
+    /* Card system */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 215 25% 27%;
 
+    /* Popover system */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 215 25% 27%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - Deep Navy Blue (inspired by ABNP) */
+    --primary: 217 91% 24%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - Light blue-gray */
+    --secondary: 217 33% 97%;
+    --secondary-foreground: 217 91% 24%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted tones */
+    --muted: 217 33% 97%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - Golden yellow for highlights */
+    --accent: 45 93% 47%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Success - Professional green */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Warning - Warm orange */
+    --warning: 25 95% 53%;
+    --warning-foreground: 0 0% 100%;
 
-    --radius: 0.5rem;
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and inputs */
+    --border: 217 20% 88%;
+    --input: 217 20% 88%;
+    --ring: 217 91% 24%;
+
+    /* Border radius */
+    --radius: 0.75rem;
+
+    /* Custom NeuroCP gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 24%), hsl(217 91% 30%));
+    --gradient-accent: linear-gradient(135deg, hsl(45 93% 47%), hsl(45 93% 52%));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 24%) 0%, hsl(217 85% 30%) 50%, hsl(217 80% 35%) 100%);
+    
+    /* Shadows */
+    --shadow-soft: 0 4px 20px -4px hsl(217 91% 24% / 0.1);
+    --shadow-card: 0 8px 30px -8px hsl(217 91% 24% / 0.15);
+    --shadow-accent: 0 8px 25px -6px hsl(45 93% 47% / 0.3);
+
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Typography scale */
+    --font-heading: 'Inter', system-ui, sans-serif;
+    --font-body: 'Inter', system-ui, sans-serif;
 
     --sidebar-background: 0 0% 98%;
 
@@ -56,41 +92,48 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark mode with same professional theme */
+    --background: 217 91% 8%;
+    --foreground: 217 20% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 217 84% 10%;
+    --card-foreground: 217 20% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 217 84% 10%;
+    --popover-foreground: 217 20% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 45 93% 47%;
+    --primary-foreground: 217 91% 8%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 217 50% 15%;
+    --secondary-foreground: 217 20% 95%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 217 50% 15%;
+    --muted-foreground: 217 20% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 45 93% 47%;
+    --accent-foreground: 217 91% 8%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --warning: 25 95% 53%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 217 50% 20%;
+    --input: 217 50% 20%;
+    --ring: 45 93% 47%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 8%), hsl(217 91% 15%));
+    --gradient-accent: linear-gradient(135deg, hsl(45 93% 47%), hsl(45 93% 52%));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 8%) 0%, hsl(217 85% 12%) 50%, hsl(217 80% 16%) 100%);
+    
+    --shadow-soft: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
+    --shadow-card: 0 8px 30px -8px hsl(0 0% 0% / 0.4);
+    --shadow-accent: 0 8px 25px -6px hsl(45 93% 47% / 0.3);
   }
 }
 
@@ -100,6 +143,77 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  /* Hero section styling */
+  .hero-section {
+    @apply bg-gradient-to-br from-primary via-primary/95 to-primary/90;
+    @apply text-primary-foreground;
+  }
+  
+  /* Card enhancements */
+  .card-enhanced {
+    @apply bg-card border border-border rounded-2xl p-6;
+    @apply shadow-[var(--shadow-card)] transition-[var(--transition-smooth)];
+    @apply hover:shadow-[var(--shadow-accent)] hover:-translate-y-1;
+  }
+  
+  /* Accent button */
+  .btn-accent {
+    @apply bg-gradient-to-r from-accent to-accent/90;
+    @apply text-accent-foreground font-semibold px-6 py-3 rounded-xl;
+    @apply shadow-[var(--shadow-accent)] transition-[var(--transition-smooth)];
+    @apply hover:scale-105 hover:shadow-lg;
+  }
+  
+  /* Success button */
+  .btn-success {
+    @apply bg-gradient-to-r from-success to-success/90;
+    @apply text-success-foreground font-semibold px-6 py-3 rounded-xl;
+    @apply transition-[var(--transition-smooth)];
+    @apply hover:scale-105;
+  }
+  
+  /* Tab styling */
+  .tab-active {
+    @apply bg-primary text-primary-foreground;
+    @apply shadow-[var(--shadow-soft)];
+  }
+  
+  .tab-inactive {
+    @apply bg-secondary text-secondary-foreground;
+    @apply hover:bg-secondary/80 transition-[var(--transition-fast)];
+  }
+  
+  /* Fade in animation */
+  .fade-in {
+    @apply animate-[fadeIn_0.5s_ease-out];
+  }
+}
+
+@layer utilities {
+  /* Custom animations */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
   }
 }
