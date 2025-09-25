@@ -3,6 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Download, FileSpreadsheet, BarChart3, Target, Calculator } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  generatePhaseData, 
+  generateConjuntosData, 
+  downloadCompletePackage,
+  generateProjectionReport
+} from '@/utils/downloadUtils';
+import { exportToExcel, exportToCSV, exportMultiSheetExcel } from '@/utils/excelUtils';
+import { loadProjectData } from '@/utils/localStorage';
 
 export const DownloadsSection = () => {
   const { toast } = useToast();
@@ -44,15 +52,83 @@ export const DownloadsSection = () => {
       description: `Arquivo ${format} será baixado em instantes.`,
     });
     
-    // Simulate download - in real implementation, generate and download files
-    setTimeout(() => {
-      const element = document.createElement('a');
-      element.href = '#';
-      element.download = `NeuroCP_${fileType.replace(/\s+/g, '_')}.${format.toLowerCase()}`;
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
-    }, 500);
+    try {
+      switch (fileType) {
+        case 'Planejamento por Fase':
+          if (format === 'CSV') {
+            exportToCSV(generatePhaseData(), 'NeuroCP_Planejamento_Fases');
+          } else {
+            exportToExcel(generatePhaseData(), 'NeuroCP_Planejamento_Fases');
+          }
+          break;
+          
+        case 'Conjuntos por Fase':
+          if (format === 'CSV') {
+            exportToCSV(generateConjuntosData(), 'NeuroCP_Conjuntos_Configuracao');
+          } else {
+            exportToExcel(generateConjuntosData(), 'NeuroCP_Conjuntos_Configuracao');
+          }
+          break;
+          
+        case 'Matriz de Anúncios':
+          const savedData = loadProjectData();
+          const matrizData = savedData.importedNomenclature || [];
+          if (format === 'CSV') {
+            exportToCSV(matrizData, 'NeuroCP_Matriz_Anuncios');
+          } else {
+            exportToExcel(matrizData, 'NeuroCP_Matriz_Anuncios');
+          }
+          break;
+          
+        case 'Projeções & Cálculos':
+          const projectData = loadProjectData();
+          if (format === 'CSV') {
+            // For CSV, we need to create a mock projection data structure
+            const mockProjectionData = {
+              fase1: { 
+                pessimista: { leads: 53, vendas: 1, receita: projectData.ticketMedio, roi: projectData.ticketMedio / 480 },
+                base: { leads: 150, vendas: 5, receita: projectData.ticketMedio * 5, roi: (projectData.ticketMedio * 5) / 480 },
+                otimista: { leads: 287, vendas: 23, receita: projectData.ticketMedio * 23, roi: (projectData.ticketMedio * 23) / 480 }
+              }
+            };
+            generateProjectionReport(projectData.ticketMedio, mockProjectionData).csv();
+          } else if (format === 'XLSX') {
+            const mockProjectionData = {
+              fase1: { 
+                pessimista: { leads: 53, vendas: 1, receita: projectData.ticketMedio, roi: projectData.ticketMedio / 480 },
+                base: { leads: 150, vendas: 5, receita: projectData.ticketMedio * 5, roi: (projectData.ticketMedio * 5) / 480 },
+                otimista: { leads: 287, vendas: 23, receita: projectData.ticketMedio * 23, roi: (projectData.ticketMedio * 23) / 480 }
+              }
+            };
+            generateProjectionReport(projectData.ticketMedio, mockProjectionData).xlsx();
+          } else if (format === 'PDF') {
+            const mockProjectionData = {
+              fase1: { 
+                pessimista: { leads: 53, vendas: 1, receita: projectData.ticketMedio, roi: projectData.ticketMedio / 480 },
+                base: { leads: 150, vendas: 5, receita: projectData.ticketMedio * 5, roi: (projectData.ticketMedio * 5) / 480 },
+                otimista: { leads: 287, vendas: 23, receita: projectData.ticketMedio * 23, roi: (projectData.ticketMedio * 23) / 480 }
+              }
+            };
+            generateProjectionReport(projectData.ticketMedio, mockProjectionData).pdf();
+          }
+          break;
+          
+        default:
+          throw new Error('Tipo de arquivo não reconhecido');
+      }
+      
+      toast({
+        title: "Download concluído!",
+        description: `${fileType} baixado com sucesso.`,
+      });
+      
+    } catch (error) {
+      toast({
+        title: "Erro no download",
+        description: "Não foi possível gerar o arquivo. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getColorClasses = (color: string) => {
@@ -105,7 +181,13 @@ export const DownloadsSection = () => {
           </div>
           <Button 
             className="bg-white text-primary hover:bg-white/90 px-8 py-3 font-semibold"
-            onClick={() => handleDownload("Pacote_Completo_NeuroCP", "ZIP")}
+            onClick={() => {
+              downloadCompletePackage();
+              toast({
+                title: "Pacote completo baixado!",
+                description: "Todos os arquivos do NeuroCP foram baixados em um ZIP.",
+              });
+            }}
           >
             <Download className="w-5 h-5 mr-2" />
             Baixar Tudo (ZIP)

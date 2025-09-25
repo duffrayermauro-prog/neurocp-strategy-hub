@@ -1,12 +1,30 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { TrendingUp, Calculator, BarChart3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { TooltipInfo } from '@/components/ui/tooltip-info';
+import { TrendingUp, Calculator, BarChart3, Download } from 'lucide-react';
+import { generateProjectionReport } from '@/utils/downloadUtils';
+import { loadProjectData, saveProjectData } from '@/utils/localStorage';
+import { useToast } from '@/hooks/use-toast';
 
 export const ProjectionsSection = () => {
   const [ticket, setTicket] = useState<number>(497);
+  const { toast } = useToast();
+
+  // Load saved ticket value on mount
+  useEffect(() => {
+    const savedData = loadProjectData();
+    setTicket(savedData.ticketMedio);
+  }, []);
+
+  // Save ticket value when it changes
+  const handleTicketChange = (value: number) => {
+    setTicket(value);
+    saveProjectData({ ticketMedio: value });
+  };
 
   const projectionData = useMemo(() => {
     const scenarios = {
@@ -108,17 +126,74 @@ export const ProjectionsSection = () => {
           <h3 className="text-lg font-semibold">Configuração da Calculadora</h3>
         </div>
         <div className="max-w-sm">
-          <Label htmlFor="ticket" className="text-sm font-medium">
-            Ticket Médio (R$)
-          </Label>
+          <div className="flex items-center gap-2 mb-2">
+            <Label htmlFor="ticket" className="text-sm font-medium">
+              Ticket Médio (R$)
+            </Label>
+            <TooltipInfo 
+              content={
+                <div className="space-y-2">
+                  <div className="font-semibold">O que é Ticket Médio?</div>
+                  <div>É o valor médio que cada cliente paga por sua oferta. Calculado como:</div>
+                  <div className="bg-muted/50 p-2 rounded font-mono text-sm">
+                    Receita Total ÷ Número de Vendas
+                  </div>
+                  <div className="font-medium">Exemplos:</div>
+                  <ul className="text-sm space-y-1">
+                    <li>• Curso online: R$ 497</li>
+                    <li>• Consultoria: R$ 2.500</li>
+                    <li>• Produto físico: R$ 89</li>
+                  </ul>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Este valor impacta diretamente nos cálculos de ROI e receita projetada.
+                  </div>
+                </div>
+              }
+            />
+          </div>
           <Input
             id="ticket"
             type="number"
             value={ticket}
-            onChange={(e) => setTicket(Number(e.target.value) || 0)}
-            className="mt-2"
+            onChange={(e) => handleTicketChange(Number(e.target.value) || 0)}
+            className="mt-1"
             placeholder="Digite o valor do ticket médio"
+            min="0"
+            step="0.01"
           />
+        </div>
+        
+        <div className="mt-4 flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => generateProjectionReport(ticket, projectionData).csv()}
+            className="flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Baixar CSV
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => generateProjectionReport(ticket, projectionData).xlsx()}
+            className="flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Baixar Excel
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => {
+              generateProjectionReport(ticket, projectionData).pdf();
+              toast({
+                title: "PDF Gerado!",
+                description: "Relatório de projeções baixado com sucesso.",
+              });
+            }}
+            className="flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Baixar PDF
+          </Button>
         </div>
       </Card>
 

@@ -1,14 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PhaseTable } from '@/components/ui/phase-table';
 import { Card } from '@/components/ui/card';
-import { Upload, Download, FileText, AlertCircle } from 'lucide-react';
+import { Upload, Download, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { parseExcelFile, validateNomenclatureStructure, exportToCSV, exportToExcel } from '@/utils/excelUtils';
+import { loadProjectData, saveProjectData } from '@/utils/localStorage';
 
 export const NomenclatureSection = () => {
   const [importedData, setImportedData] = useState<any[]>([]);
   const [isImported, setIsImported] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Load saved data on mount
+  useEffect(() => {
+    const savedData = loadProjectData();
+    if (savedData.hasImportedData && savedData.importedNomenclature) {
+      setImportedData(savedData.importedNomenclature);
+      setIsImported(true);
+    }
+  }, []);
 
   const defaultData = [
     // C1 - TOPO
@@ -136,30 +148,76 @@ export const NomenclatureSection = () => {
     }
   ];
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        // Simulate Excel parsing - in real app, use a library like xlsx
+    setIsLoading(true);
+
+    try {
+      const sheetData = await parseExcelFile(file);
+      
+      // Look for nomenclature data in expected sheets
+      let nomenclatureData: any[] = [];
+      
+      const possibleSheets = ['Matriz_Anuncios', 'Anuncios', 'Nomenclatura', 'Sheet1'];
+      
+      for (const sheetName of possibleSheets) {
+        if (sheetData[sheetName]) {
+          nomenclatureData = sheetData[sheetName];
+          break;
+        }
+      }
+      
+      if (nomenclatureData.length === 0) {
+        // If no specific sheet found, use the first sheet
+        const firstSheetName = Object.keys(sheetData)[0];
+        if (firstSheetName) {
+          nomenclatureData = sheetData[firstSheetName];
+        }
+      }
+
+      if (nomenclatureData.length === 0) {
+        throw new Error('Nenhum dado encontrado no arquivo');
+      }
+
+      // Validate structure
+      const validation = validateNomenclatureStructure(nomenclatureData);
+      
+      if (!validation.isValid) {
         toast({
-          title: "Arquivo importado!",
-          description: `${file.name} foi processado com sucesso.`,
-        });
-        setIsImported(true);
-        // In real implementation, parse the Excel and populate importedData
-        setImportedData(defaultData);
-      } catch (error) {
-        toast({
-          title: "Erro na importação",
-          description: "Verifique se o arquivo está no formato correto.",
+          title: "Erro na estrutura do arquivo",
+          description: validation.errors.join('. '),
           variant: "destructive",
         });
+        setIsLoading(false);
+        return;
       }
-    };
-    reader.readAsArrayBuffer(file);
+
+      // Save data
+      setImportedData(nomenclatureData);
+      setIsImported(true);
+      
+      // Persist to localStorage
+      saveProjectData({ 
+        importedNomenclature: nomenclatureData,
+        hasImportedData: true
+      });
+
+      toast({
+        title: "Arquivo importado com sucesso!",
+        description: `${nomenclatureData.length} anúncios processados de ${file.name}`,
+      });
+
+    } catch (error) {
+      toast({
+        title: "Erro na importação",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const columns = [
@@ -205,9 +263,9 @@ export const NomenclatureSection = () => {
               id="excel-upload"
             />
             <label htmlFor="excel-upload">
-              <Button className="btn-accent cursor-pointer">
+              <Button className="btn-accent cursor-pointer" disabled={isLoading}>
                 <Upload className="w-4 h-4 mr-2" />
-                Importar Planilha Excel
+                {isLoading ? 'Processando...' : 'Importar Planilha Excel'}
               </Button>
             </label>
           </div>
@@ -216,11 +274,18 @@ export const NomenclatureSection = () => {
             <p>Abas esperadas: Campanhas, Conjuntos, Matriz_Anuncios</p>
           </div>
         </div>
-        {!isImported && (
+        {!isImported ? (
           <div className="mt-4 flex items-start gap-2 p-3 bg-warning/10 rounded-lg">
             <AlertCircle className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
             <p className="text-sm text-warning-foreground">
               Nenhuma planilha importada. Exibindo dados de exemplo padrão.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 flex items-start gap-2 p-3 bg-success/10 rounded-lg">
+            <CheckCircle2 className="w-4 h-4 text-success mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-success-foreground">
+              Planilha importada com sucesso! Exibindo {currentData.length} anúncios.
             </p>
           </div>
         )}
@@ -281,9 +346,10 @@ export const NomenclatureSection = () => {
             variant="outline" 
             className="flex items-center gap-2"
             onClick={() => {
+              exportToCSV(currentData, 'NeuroCP_Matriz_Anuncios');
               toast({
-                title: "Exportando CSV...",
-                description: "Download iniciado com sucesso.",
+                title: "CSV baixado!",
+                description: "Matriz de anúncios exportada com sucesso.",
               });
             }}
           >
@@ -294,9 +360,10 @@ export const NomenclatureSection = () => {
             variant="outline"
             className="flex items-center gap-2"
             onClick={() => {
+              exportToExcel(currentData, 'NeuroCP_Matriz_Anuncios', 'Matriz_Anuncios');
               toast({
-                title: "Exportando Excel...", 
-                description: "Download iniciado com sucesso.",
+                title: "Excel baixado!",
+                description: "Matriz de anúncios exportada com sucesso.",
               });
             }}
           >
